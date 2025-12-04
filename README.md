@@ -1,3 +1,6 @@
+** Buggy for DB > 2GB **
+
+
 ## TreePIR Benchmarks with Claude
 
 
@@ -20,6 +23,16 @@
    DB Size   OfflineServerTime   OfflineClientTime   OfflineBytes    ClientBytes    OnlineServerTime    OnlineClientTime    OnlineBytes
     1.00GB             15.088s             117.1ms        89.83MB         1.57MB               4.3ms               1.1ms         2.00MB
 ```
+
+- **DB Size**: Total logical database size (number of rows × row length), shown in a human‑readable unit.
+- **OfflineServerTime**: Average server time per operation in the **offline phase** (hint generation).
+- **OfflineClientTime**: Average client time per operation in the **offline phase** (processing hints / initialization).
+- **OfflineBytes**: Average communication volume in the offline phase, per operation.
+- **ClientBytes**: Client storage required to hold TreePIR state (keys, hints, etc.).
+- **OnlineServerTime**: Average server time per query in the **online phase**.
+- **OnlineClientTime**: Average client time per query in the online phase (query generation + decryption).
+- **OnlineBytes**: Average online communication volume per query.
+
 
 ### Reproducing These Benchmarks
 
