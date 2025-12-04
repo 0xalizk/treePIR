@@ -94,7 +94,22 @@ func (c *WaterfallClient) HintUpdateReq(numNewRows int, rowLen int) (*UpdatableH
 		return nil, nil
 	}
 	layer := &c.layers[layerNum]
-	if layer.pirType != pir.Punc {
+	// TreePIR works like Punc - it needs the server's database to generate hints
+	if layer.pirType == pir.TreePIR || layer.pirType == pir.Punc {
+		var hintReq pir.HintReq
+		if layer.pirType == pir.Punc {
+			hintReq = pir.NewPuncHintReq(c.randSource)
+		} else {
+			hintReq = pir.NewTreePIRHintReq(c.randSource)
+		}
+		return &UpdatableHintReq{
+			FirstRow: layer.firstRow,
+			NumRows:  layer.numRows,
+			Req:      hintReq,
+		}, nil
+	}
+	// For other schemes (like DPF) that don't need hints, initialize locally
+	if layer.pirType == pir.DPF {
 		req, err := pir.NewHintReq(c.randSource, layer.pirType).Process(pir.StaticDB{NumRows: layer.numRows, RowLen: c.rowLen})
 		if err != nil {
 			return nil, err
@@ -102,11 +117,14 @@ func (c *WaterfallClient) HintUpdateReq(numNewRows int, rowLen int) (*UpdatableH
 		layer.pir = req.InitClient(c.randSource)
 		return nil, nil
 	}
-	return &UpdatableHintReq{
-		FirstRow: layer.firstRow,
-		NumRows:  layer.numRows,
-		Req:      pir.NewPuncHintReq(c.randSource),
-	}, nil
+	// For other schemes, create a dummy FlatDb if needed
+	dummyFlatDb := make([]byte, layer.numRows*c.rowLen)
+	req, err := pir.NewHintReq(c.randSource, layer.pirType).Process(pir.StaticDB{NumRows: layer.numRows, RowLen: c.rowLen, FlatDb: dummyFlatDb})
+	if err != nil {
+		return nil, err
+	}
+	layer.pir = req.InitClient(c.randSource)
+	return nil, nil
 }
 
 func (c *WaterfallClient) updateLayers(numNewRows int) int {
@@ -190,6 +208,9 @@ func (c *WaterfallClient) Query(pos int) ([]pir.QueryReq, pir.ReconstructFunc) {
 			matchingLayer = len(req[pir.Left].Reqs)
 		} else {
 			q = layer.pir.DummyQuery()
+		}
+		if len(q) < 2 {
+			panic(fmt.Sprintf("Query returned insufficient requests: got %d, need 2", len(q)))
 		}
 		for s := range []int{pir.Left, pir.Right} {
 			req[s].FirstRow = append(req[s].FirstRow, c.layers[l].firstRow)

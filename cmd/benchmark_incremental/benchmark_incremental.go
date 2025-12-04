@@ -25,9 +25,22 @@ func main() {
 	prof := NewProfiler(config.CpuProfile)
 	defer prof.Close()
 
+	// formatDBSize converts bytes to a human-readable string (KB, MB, or GB)
+	formatDBSize := func(bytes float64) string {
+		if bytes >= 1073741824 {
+			return fmt.Sprintf("%.2fGB", bytes/1073741824.0)
+		} else if bytes >= 1048576 {
+			return fmt.Sprintf("%.2fMB", bytes/1048576.0)
+		} else if bytes >= 1024 {
+			return fmt.Sprintf("%.2fKB", bytes/1024.0)
+		} else {
+			return fmt.Sprintf("%.0fB", bytes)
+		}
+	}
+
 	fmt.Printf("# %s %s\n", path.Base(os.Args[0]), strings.Join(os.Args[1:], " "))
 	fmt.Printf("%10s%12s%22s%22s%22s%15s%22s%22s%15s\n",
-		"numRows",
+		"DB Size",
 		"updateSize",
 		"UpdateServerTime[us]", "UpdateClientTime[us]", "UpdateBytesPerChange", "ClientBytes",
 		"OnlineServerTime[us]", "OnlineClientTime[us]", "OnlineBytes")
@@ -99,8 +112,9 @@ func main() {
 	assert.NilError(ep, driver.GetOnlineBytes(0, &onlineBytes))
 	assert.NilError(ep, driver.GetOfflineBytes(0, &offlineBytes))
 
-	fmt.Printf("%10d%12d%22d%22d%22d%15d%22d%22d%15d\n",
-		config.NumRows,
+	dbSize := float64(config.NumRows * config.RowLen)
+	fmt.Printf("%10s%12d%22d%22d%22d%15d%22d%22d%15d\n",
+		formatDBSize(dbSize),
 		config.UpdateSize,
 		serverOfflineTime.Microseconds()/int64(numBatches),
 		(clientUpdateTime-serverOfflineTime).Microseconds()/int64(numBatches),
