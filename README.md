@@ -1,5 +1,4 @@
 
-
 ## Benchmarking treePIR 
 
 ![TreePIR Benchmark Results](treepir_benchmark_results.png)
