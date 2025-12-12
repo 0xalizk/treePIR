@@ -77,15 +77,6 @@ func (req *TreePIRHintReq) Process(db StaticDB) (HintResp, error) {
 	//guess it makes sense
 
 	setSize := int(math.Round(math.Pow(float64(db.NumRows), 0.5)))
-	// Ensure minimum setSize to avoid C code issues with very small sets
-	const minSetSize = 4
-	if setSize < minSetSize {
-		if db.NumRows < minSetSize*minSetSize {
-			return nil, fmt.Errorf("TreePIR requires at least %d rows (got %d). With rowLen=%d, you need at least %d rows for a valid configuration", 
-				minSetSize*minSetSize, db.NumRows, db.RowLen, minSetSize*minSetSize)
-		}
-		setSize = minSetSize
-	}
 	//start := time.Now()
 	initNextHeight(setSize)
 	//elapsed := time.Since(start)
@@ -126,15 +117,6 @@ func (req *TreePIRHintReq) LocalityProcess(db StaticDB) (HintResp, error) {
 
 
 	setSize := int(math.Round(math.Pow(float64(db.NumRows), 0.5)))
-	// Ensure minimum setSize to avoid C code issues with very small sets
-	const minSetSize = 4
-	if setSize < minSetSize {
-		if db.NumRows < minSetSize*minSetSize {
-			return nil, fmt.Errorf("TreePIR requires at least %d rows (got %d). With rowLen=%d, you need at least %d rows for a valid configuration", 
-				minSetSize*minSetSize, db.NumRows, db.RowLen, minSetSize*minSetSize)
-		}
-		setSize = minSetSize
-	}
 	fmt.Printf("Num Rows: %d, setSize: %d \n",db.NumRows,setSize)
 	
 	//start := time.Now()
