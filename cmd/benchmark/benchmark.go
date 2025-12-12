@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -94,6 +95,7 @@ type BenchmarkResult struct {
 		NumRows  int
 		RowLen   int
 		SetSize  int
+		PIRType  string
 	}
 	Offline struct {
 		ServerTimeUs int64
@@ -141,12 +143,13 @@ func FormatTime(us int64) string {
 }
 
 // RunBenchmark executes the full benchmark
-func RunBenchmark(numRows, rowLen int, numQueries int) (*BenchmarkResult, error) {
+func RunBenchmark(numRows, rowLen int, numQueries int, pirType pir.PirType) (*BenchmarkResult, error) {
 	result := &BenchmarkResult{}
 	result.Config.NumRows = numRows
 	result.Config.RowLen = rowLen
 	result.Config.DbSize = int64(numRows) * int64(rowLen)
 	result.Config.SetSize = int(math.Sqrt(float64(numRows)))
+	result.Config.PIRType = pirType.String()
 
 	fmt.Printf("\nInitializing benchmark...\n")
 
@@ -181,7 +184,7 @@ func RunBenchmark(numRows, rowLen int, numQueries int) (*BenchmarkResult, error)
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
 			client = pir.NewPIRReader(randSource, dr, dr)
-			err = client.Init(pir.TreePIR)
+			err = client.Init(pirType)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -332,7 +335,7 @@ func PrintReport(result *BenchmarkResult) {
 	fmt.Printf("  Database Size:      %s (%d bytes)\n", FormatBytes(int(result.Config.DbSize)), result.Config.DbSize)
 	fmt.Printf("  Number of Rows:     %d\n", result.Config.NumRows)
 	fmt.Printf("  Row Length:         %d bytes\n", result.Config.RowLen)
-	fmt.Printf("  PIR Type:           TreePIR\n")
+	fmt.Printf("  PIR Type:           %s\n", result.Config.PIRType)
 	fmt.Printf("  Set Size (√n):      %d\n", result.Config.SetSize)
 
 	fmt.Println("\n" + strings.Repeat("=", 80))
@@ -365,17 +368,37 @@ func PrintReport(result *BenchmarkResult) {
 	fmt.Println()
 }
 
+// SaveResultsJSON saves benchmark results to a JSON file
+func SaveResultsJSON(result *BenchmarkResult, filename string) error {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal results: %v", err)
+	}
+
+	err = os.WriteFile(filename, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %v", err)
+	}
+
+	fmt.Printf("\nResults saved to: %s\n", filename)
+	return nil
+}
+
 func main() {
 	// Parse flags
 	var (
 		rowLenOverride int
 		numQueries     int
 		forceRun       bool
+		pirTypeName    string
+		outputFile     string
 	)
 
 	flag.IntVar(&rowLenOverride, "rowLen", 0, "Override automatic rowLen selection")
 	flag.IntVar(&numQueries, "queries", 100, "Number of online queries to benchmark")
 	flag.BoolVar(&forceRun, "force", false, "Force run even if database size exceeds recommended limit")
+	flag.StringVar(&pirTypeName, "pirType", "TreePIR", "PIR type to use (TreePIR, NonPrivate, Matrix, Punc, DPF)")
+	flag.StringVar(&outputFile, "output", "", "Save results to JSON file (optional)")
 	flag.Parse()
 
 	// Get size argument
@@ -394,6 +417,23 @@ func main() {
 	dbSize, err := ParseSize(sizeStr)
 	if err != nil {
 		log.Fatalf("Invalid size '%s': %v\n", sizeStr, err)
+	}
+
+	// Parse PIR type
+	var pirType pir.PirType
+	switch pirTypeName {
+	case "TreePIR":
+		pirType = pir.TreePIR
+	case "NonPrivate":
+		pirType = pir.NonPrivate
+	case "Matrix":
+		pirType = pir.Matrix
+	case "Punc":
+		pirType = pir.Punc
+	case "DPF":
+		pirType = pir.DPF
+	default:
+		log.Fatalf("Invalid PIR type '%s'. Valid options: TreePIR, NonPrivate, Matrix, Punc, DPF\n", pirTypeName)
 	}
 
 	// Calculate parameters
@@ -424,16 +464,23 @@ func main() {
 	fmt.Printf("  Actual Size:        %s (%d bytes)\n", FormatBytes(int(actualSize)), actualSize)
 	fmt.Printf("  Num Rows:           %d\n", numRows)
 	fmt.Printf("  Row Length:         %d bytes\n", rowLen)
-	fmt.Printf("  PIR Type:           TreePIR\n")
+	fmt.Printf("  PIR Type:           %s\n", pirTypeName)
 	fmt.Printf("  Queries:            %d\n", numQueries)
 	fmt.Printf(strings.Repeat("=", 80) + "\n")
 
 	// Run benchmark
-	result, err := RunBenchmark(numRows, rowLen, numQueries)
+	result, err := RunBenchmark(numRows, rowLen, numQueries, pirType)
 	if err != nil {
 		log.Fatalf("Benchmark failed: %v\n", err)
 	}
 
 	// Display results
 	PrintReport(result)
+
+	// Save results to JSON if output file specified
+	if outputFile != "" {
+		if err := SaveResultsJSON(result, outputFile); err != nil {
+			log.Fatalf("Failed to save results: %v\n", err)
+		}
+	}
 }

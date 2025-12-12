@@ -1,0 +1,26 @@
+{
+  "Config": {
+    "DbSize": 4294967296,
+    "NumRows": 16777216,
+    "RowLen": 256,
+    "SetSize": 4096,
+    "PIRType": "TreePIR"
+  },
+  "Offline": {
+    "ServerTimeUs": 91646250,
+    "ClientTimeUs": 54649,
+    "CommBytes": 93356088,
+    "StorageBytes": 130023424
+  },
+  "Online": {
+    "AvgQueryGenUs": 2265,
+    "AvgServerTimeUs": 7915,
+    "AvgReconstructUs": 0,
+    "AvgTotalUs": 10180,
+    "AvgOnlineBytes": 2098074,
+    "NumQueries": 100,
+    "MinTimeUs": 8180,
+    "MaxTimeUs": 14722,
+    "StdDevUs": 1535.519605866366
+  }
+}

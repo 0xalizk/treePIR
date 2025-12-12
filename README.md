@@ -1,8 +1,6 @@
-** Buggy for DB > 2GB **
 
-# TreePIR:
 
-## Benchmark Results
+## Benchmarking treePIR 
 
 ![TreePIR Benchmark Results](treepir_benchmark_results.png)
 
